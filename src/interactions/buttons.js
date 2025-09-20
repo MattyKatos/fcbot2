@@ -242,8 +242,10 @@ async function handleButton(interaction, appConfig) {
 
     if (roll === 0) {
       const winnerUser = payload.turn === 'challenger' ? challenged : challenger;
+      const loserUser = payload.turn === 'challenger' ? challenger : challenged;
       const pot = Number(row.gamba_bet) * 2;
       await pool.query('UPDATE users SET currency = currency + ?, streak_current = streak_current + 1, streak_longest = GREATEST(streak_longest, streak_current) WHERE user_id = ?', [pot, winnerUser.user_id]);
+      await pool.query('UPDATE users SET streak_current = 0 WHERE user_id = ?', [loserUser.user_id]);
       await pool.query('UPDATE gamba SET gamba_status = ?, gamba_winner_id = ?, gamba_payload = ? WHERE gamba_id = ?', ['completed', winnerUser.user_id, JSON.stringify(payload), gambaId]);
       const transcript = payload.lines.join('\n');
       const resultLine = `<@${winnerUser.user_discord_id}> wins!`;
