@@ -1,0 +1,36 @@
+{
+  "name": "fcbot",
+  "version": "1.0.0",
+  "description": "Discord bot and web scraper with MySQL backend",
+  "main": "src/bot.js",
+  "scripts": {
+    "start": "node src/bot.js",
+    "dev": "nodemon src/bot.js",
+    "init-db": "node scripts/init-db.js",
+    "start-web": "node src/web/server.js"
+  },
+  "keywords": [
+    "discord",
+    "bot",
+    "scraper",
+    "mysql"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "axios": "^1.7.7",
+    "cheerio": "^1.0.0",
+    "dayjs": "^1.11.13",
+    "discord.js": "^14.16.3",
+    "dotenv": "^16.4.5",
+    "mysql2": "^3.11.3",
+    "express": "^4.19.2",
+    "express-session": "^1.17.3",
+    "passport": "^0.7.0",
+    "passport-discord": "^0.1.4",
+    "ejs": "^3.1.10"
+  },
+  "devDependencies": {
+    "nodemon": "^3.1.7"
+  }
+}

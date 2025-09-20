@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manage Roles</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#0f172a; --card:#111827; --muted:#9ca3af; --fg:#e5e7eb; --primary:#06b6d4; }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b1220 0%, #0f172a 100%);font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;color:var(--fg)}
+    header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid #1f2937;background:rgba(17,24,39,.6);backdrop-filter: blur(8px)}
+    header a{color:var(--fg);text-decoration:none}
+    main{padding:28px;max-width:900px;margin:0 auto}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 18px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+    input[type=number]{width:110px;padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0b1220;color:var(--fg)}
+    .switch{position:relative;display:inline-block;width:52px;height:28px}
+    .switch input{opacity:0;width:0;height:0}
+    .slider{position:absolute;cursor:pointer;top:0;left:0;right:0;bottom:0;background:#374151;transition:.2s;border-radius:999px}
+    .slider:before{position:absolute;content:"";height:22px;width:22px;left:3px;bottom:3px;background:white;transition:.2s;border-radius:50%}
+    input:checked + .slider{background:#06b6d4}
+    input:checked + .slider:before{transform:translateX(24px)}
+    .save{background:var(--primary);color:#06252c;border:0;font-weight:800;padding:10px 14px;border-radius:10px}
+    .notice{margin-left:12px;color:#7dd3fc}
+  </style>
+</head>
+<body>
+  <header>
+    <div>FCBot — Manage Roles</div>
+    <nav><a href="/dashboard">Dashboard</a></nav>
+  </header>
+
+  <main>
+    <div class="card">
+      <form method="post" action="/roles">
+        <table>
+          <thead>
+            <tr>
+              <th>Role Name</th>
+              <th>Priority</th>
+              <th>Can Have Multiple</th>
+              <th>Can Be Auto Assigned</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% for (const r of roles) { %>
+              <tr>
+                <td><%= r.role_name %> <span class="muted">(ID: <%= r.discord_role_id %>)</span></td>
+                <td><input type="number" name="priority_<%= r.discord_role_id %>" value="<%= r.role_priority %>" /></td>
+                <td>
+                  <label class="switch">
+                    <input type="checkbox" name="multi_<%= r.discord_role_id %>" <%= r.can_have_multiple ? 'checked' : '' %> />
+                    <span class="slider"></span>
+                  </label>
+                </td>
+                <td>
+                  <label class="switch">
+                    <input type="checkbox" name="auto_<%= r.discord_role_id %>" <%= r.can_be_auto_assigned ? 'checked' : '' %> />
+                    <span class="slider"></span>
+                  </label>
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+        <div style="margin-top:16px">
+          <button class="save" type="submit">Save Changes</button>
+          <% if (saved) { %>
+            <span class="notice">Saved.</span>
+          <% } %>
+        </div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>
