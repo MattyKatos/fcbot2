@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Manage Channels</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#0f172a; --card:#111827; --muted:#9ca3af; --fg:#e5e7eb; --primary:#06b6d4; }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b1220 0%, #0f172a 100%);font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;color:var(--fg)}
+    header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid #1f2937;background:rgba(17,24,39,.6);backdrop-filter: blur(8px)}
+    header a{color:var(--fg);text-decoration:none}
+    main{padding:28px;max-width:1100px;margin:0 auto}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 18px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+    select,button{padding:8px 10px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0b1220;color:var(--fg)}
+    .btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0b1220;color:var(--fg);text-decoration:none}
+    .notice{margin:10px 0;color:#7dd3fc}
+  </style>
+</head>
+<body>
+  <header>
+    <div>FCBot — Manage Channels</div>
+    <nav>
+      <a class="btn" href="/dashboard">Dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    <% if (saved) { %><div class="notice">Saved.</div><% } %>
+    <div class="card">
+      <form method="post" action="/channels">
+        <table>
+          <thead>
+            <tr>
+              <th>Discord ID</th>
+              <th>Name</th>
+              <th>Use</th>
+            </tr>
+          </thead>
+          <tbody>
+            <% for (const ch of channels) { %>
+              <tr>
+                <td><%= ch.channel_discord_id %></td>
+                <td><%= ch.channel_name %></td>
+                <td>
+                  <select name="use_<%= ch.channel_id %>">
+                    <option value="" <%= ch.channel_use==='unspecified' || !ch.channel_use ? 'selected' : '' %> >-- none --</option>
+                    <option value="gamba" <%= ch.channel_use==='gamba' ? 'selected' : '' %> >gamba</option>
+                  </select>
+                </td>
+              </tr>
+            <% } %>
+          </tbody>
+        </table>
+        <div style="margin-top:12px">
+          <button type="submit">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </main>
+</body>
+</html>

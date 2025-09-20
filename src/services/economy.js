@@ -20,9 +20,16 @@ async function claimDaily(discordUser, dailyAmount, currencyName = 'Gil') {
 
   const pool = await getPool();
 
-  // Check if user has already claimed today by querying logs
+  // Check if user has already claimed during the current UTC day
+  // UTC window: [UTC_DATE(), UTC_DATE() + 1 day)
   const [rows] = await pool.query(
-    `SELECT 1 FROM logs WHERE user_id = ? AND log_type = 'daily' AND DATE(\`timestamp\`) = CURDATE() LIMIT 1`,
+    `SELECT 1
+     FROM logs
+     WHERE user_id = ?
+       AND log_type = 'daily'
+       AND \`timestamp\` >= UTC_DATE()
+       AND \`timestamp\` < UTC_DATE() + INTERVAL 1 DAY
+     LIMIT 1`,
     [user.user_id]
   );
 

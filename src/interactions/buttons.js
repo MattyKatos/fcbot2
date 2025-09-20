@@ -1,4 +1,4 @@
-const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionsBitField } = require('discord.js');
+const { ActionRowBuilder, ModalBuilder, TextInputBuilder, TextInputStyle, PermissionsBitField, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { ensureUserByDiscordId, getUserByDiscordId } = require('../services/db-helpers');
 const { removeUserByDiscordId } = require('../services/users');
 const { claimDaily } = require('../services/economy');
@@ -22,6 +22,7 @@ async function refreshPanel(interaction, appConfig) {
     } catch {}
   }
 
+  // removed deathroll handlers; moved to handleButton
   // No interaction handling in refreshPanel
 }
 
@@ -140,6 +141,164 @@ async function handleButton(interaction, appConfig) {
     return interaction.showModal(modal);
   }
 
+  // /fcuser: open Give Currency modal targeting the looked-up user
+  const userGiveCur = id.match(/^fc_user_give_cur_(\d+)$/);
+  if (userGiveCur) {
+    const targetDiscordId = userGiveCur[1];
+    const modal = new ModalBuilder()
+      .setCustomId(`fc_user_modal_give_cur_${targetDiscordId}`)
+      .setTitle('Give Currency');
+    const input = new TextInputBuilder()
+      .setCustomId('amount')
+      .setLabel('Amount to give')
+      .setPlaceholder('positive integer')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
+    return interaction.showModal(modal);
+  }
+
+  // /fcuser: open Deathroll bet modal targeting the looked-up user
+  const drChallenge = id.match(/^fc_user_challenge_deathroll_(\d+)$/);
+  if (drChallenge) {
+    const targetDiscordId = drChallenge[1];
+    const modal = new ModalBuilder()
+      .setCustomId(`fc_user_modal_deathroll_${targetDiscordId}`)
+      .setTitle('Deathroll: Enter Bet');
+    const input = new TextInputBuilder()
+      .setCustomId('amount')
+      .setLabel('Bet amount')
+      .setPlaceholder('positive integer')
+      .setStyle(TextInputStyle.Short)
+      .setRequired(true);
+    modal.addComponents(new ActionRowBuilder().addComponents(input));
+    return interaction.showModal(modal);
+  }
+
+  // Accept an active deathroll (only challenged user) -> initialize interactive game state
+  const drAccept = id.match(/^gamba_accept_(\d+)$/);
+  if (drAccept) {
+    const gambaId = parseInt(drAccept[1], 10);
+    const pool = await getPool();
+    const [[row]] = await pool.query('SELECT * FROM gamba WHERE gamba_id = ?', [gambaId]);
+    if (!row) return interaction.reply({ content: 'This challenge no longer exists.', ephemeral: true });
+    if (row.gamba_status !== 'pending') return interaction.reply({ content: 'This challenge is not pending.', ephemeral: true });
+    const [[challenger]] = await pool.query('SELECT * FROM users WHERE user_id = ?', [row.gamba_challenger_id]);
+    const [[challenged]] = await pool.query('SELECT * FROM users WHERE user_id = ?', [row.gamba_user_id]);
+    if (!challenger || !challenged) return interaction.reply({ content: 'Users not found.', ephemeral: true });
+    if (String(interaction.user.id) !== String(challenged.user_discord_id)) {
+      return interaction.reply({ content: 'Only the challenged user can accept.', ephemeral: true });
+    }
+    const bet = Number(row.gamba_bet);
+    const [[bal]] = await pool.query('SELECT currency FROM users WHERE user_id = ?', [challenged.user_id]);
+    if (Number(bal.currency) < bet) {
+      return interaction.reply({ content: 'You do not have enough funds to accept this bet.', ephemeral: true });
+    }
+    await pool.query('UPDATE users SET currency = currency - ? WHERE user_id = ?', [bet, challenged.user_id]);
+    const payload = { max: 1000, turn: 'challenger', lines: [], bet };
+    await pool.query('UPDATE gamba SET gamba_status = ?, gamba_payload = ? WHERE gamba_id = ?', ['active', JSON.stringify(payload), gambaId]);
+    const rowComp = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`gamba_roll_${gambaId}`).setLabel('Roll').setStyle(ButtonStyle.Primary)
+    );
+    const content = [
+      `Deathroll accepted!`,
+      `Bet: ${bet}`,
+      `Next up: Challenger (<@${challenger.user_discord_id}>) roll 0 - ${payload.max}`
+    ].join('\n');
+    try {
+      await interaction.deferUpdate();
+      await interaction.editReply({ content, components: [rowComp] });
+    } catch (e) {
+      console.error('deathroll accept edit error:', e);
+    }
+    return;
+  }
+
+  // Roll once for interactive deathroll
+  const drRoll = id.match(/^gamba_roll_(\d+)$/);
+  if (drRoll) {
+    const gambaId = parseInt(drRoll[1], 10);
+    const pool = await getPool();
+    const [[row]] = await pool.query('SELECT * FROM gamba WHERE gamba_id = ?', [gambaId]);
+    if (!row) return interaction.reply({ content: 'This challenge no longer exists.', ephemeral: true });
+    if (row.gamba_status !== 'active') return interaction.reply({ content: 'This challenge is not active.', ephemeral: true });
+    let payload;
+    try { payload = JSON.parse(row.gamba_payload || '{}'); } catch { payload = null; }
+    if (!payload || typeof payload.max !== 'number' || !payload.turn) {
+      return interaction.reply({ content: 'Invalid game state.', ephemeral: true });
+    }
+    const [[challenger]] = await pool.query('SELECT * FROM users WHERE user_id = ?', [row.gamba_challenger_id]);
+    const [[challenged]] = await pool.query('SELECT * FROM users WHERE user_id = ?', [row.gamba_user_id]);
+    if (!challenger || !challenged) return interaction.reply({ content: 'Users not found.', ephemeral: true });
+    const expectedDiscord = payload.turn === 'challenger' ? String(challenger.user_discord_id) : String(challenged.user_discord_id);
+    if (String(interaction.user.id) !== expectedDiscord) {
+      return interaction.reply({ content: `It's not your turn.`, ephemeral: true });
+    }
+    const max = Math.max(0, Math.floor(payload.max));
+    const roll = Math.floor(Math.random() * (max + 1));
+    const whoLabel = payload.turn === 'challenger' ? `Challenger (<@${challenger.user_discord_id}>)` : `Challenged (<@${challenged.user_discord_id}>)`;
+    payload.lines = Array.isArray(payload.lines) ? payload.lines : [];
+    payload.lines.push(`${whoLabel} rolls ${roll} (max ${max})`);
+
+    if (roll === 0) {
+      const winnerUser = payload.turn === 'challenger' ? challenged : challenger;
+      const pot = Number(row.gamba_bet) * 2;
+      await pool.query('UPDATE users SET currency = currency + ?, streak_current = streak_current + 1, streak_longest = GREATEST(streak_longest, streak_current) WHERE user_id = ?', [pot, winnerUser.user_id]);
+      await pool.query('UPDATE gamba SET gamba_status = ?, gamba_winner_id = ?, gamba_payload = ? WHERE gamba_id = ?', ['completed', winnerUser.user_id, JSON.stringify(payload), gambaId]);
+      const transcript = payload.lines.join('\n');
+      const resultLine = `<@${winnerUser.user_discord_id}> wins!`;
+      try {
+        await interaction.deferUpdate();
+        await interaction.editReply({ content: `Deathroll result!\nBet: ${row.gamba_bet}\n${transcript}\n\n${resultLine}`, components: [] });
+      } catch (e) {
+        console.error('deathroll roll-complete edit error:', e);
+      }
+      return;
+    }
+
+    // Continue game: switch turn, reduce max
+    payload.max = roll;
+    payload.turn = payload.turn === 'challenger' ? 'challenged' : 'challenger';
+    await pool.query('UPDATE gamba SET gamba_payload = ? WHERE gamba_id = ?', [JSON.stringify(payload), gambaId]);
+    const nextUser = payload.turn === 'challenger' ? challenger : challenged;
+    const transcript = payload.lines.join('\n');
+    const rowComp = new ActionRowBuilder().addComponents(
+      new ButtonBuilder().setCustomId(`gamba_roll_${gambaId}`).setLabel('Roll').setStyle(ButtonStyle.Primary)
+    );
+    try {
+      await interaction.deferUpdate();
+      await interaction.editReply({ content: `Bet: ${row.gamba_bet}\n${transcript}\n\nNext up: <@${nextUser.user_discord_id}> roll 0 - ${payload.max}`, components: [rowComp] });
+    } catch (e) {
+      console.error('deathroll roll-step edit error:', e);
+    }
+    return;
+  }
+  // Cancel a pending deathroll (challenger or challenged)
+  const drCancel = id.match(/^gamba_cancel_(\d+)$/);
+  if (drCancel) {
+    const gambaId = parseInt(drCancel[1], 10);
+    const pool = await getPool();
+    const [[row]] = await pool.query('SELECT * FROM gamba WHERE gamba_id = ?', [gambaId]);
+    if (!row) return interaction.reply({ content: 'This challenge no longer exists.', ephemeral: true });
+    if (row.gamba_status !== 'pending') return interaction.reply({ content: 'This challenge cannot be cancelled.', ephemeral: true });
+    const [[challenger]] = await pool.query('SELECT * FROM users WHERE user_id = ?', [row.gamba_challenger_id]);
+    const [[challenged]] = await pool.query('SELECT * FROM users WHERE user_id = ?', [row.gamba_user_id]);
+    if (!challenger || !challenged) return interaction.reply({ content: 'Users not found.', ephemeral: true });
+    const isAllowed = String(interaction.user.id) === String(challenger.user_discord_id) || String(interaction.user.id) === String(challenged.user_discord_id);
+    if (!isAllowed) return interaction.reply({ content: 'Only the challenger or challenged can cancel.', ephemeral: true });
+    await pool.query('UPDATE users SET currency = currency + ? WHERE user_id = ?', [row.gamba_bet, row.gamba_challenger_id]);
+    await pool.query('UPDATE gamba SET gamba_status = ? WHERE gamba_id = ?', ['cancelled', gambaId]);
+    try {
+      await interaction.deferUpdate();
+      await interaction.editReply({ content: 'Deathroll cancelled. Bet refunded to challenger.', components: [] });
+    } catch (e) {
+      console.error('deathroll cancel edit error:', e);
+    }
+    return;
+  }
+
+  
+
   // Admin: Delete User
   const adminDel = id.match(/^fc_admin_user_delete_(\d+)$/);
   if (adminDel) {
@@ -203,6 +362,39 @@ async function handleButton(interaction, appConfig) {
     }
   }
 
+  if (id === 'fc_admin_sync_channels') {
+    const hasPerm = interaction.inGuild() && interaction.memberPermissions?.has?.(PermissionsBitField.Flags.ManageGuild);
+    if (!hasPerm) {
+      return interaction.reply({ content: 'You need Manage Server permission to sync channels.', ephemeral: true });
+    }
+    if (!interaction.guild) {
+      return interaction.reply({ content: 'This command must be used in a server.', ephemeral: true });
+    }
+    await interaction.deferReply({ ephemeral: true });
+    try {
+      const fetched = await interaction.guild.channels.fetch();
+      const pool = await getPool();
+      let upserts = 0;
+      for (const ch of fetched.values()) {
+        if (!ch) continue;
+        const isThread = typeof ch.isThread === 'function' ? ch.isThread() : false;
+        if (isThread) continue;
+        const chId = String(ch.id);
+        const chName = ch.name || `channel_${chId}`;
+        const chUse = 'unspecified';
+        await pool.query(
+          'INSERT INTO channels (channel_discord_id, channel_name, channel_use) VALUES (?, ?, ?) ON DUPLICATE KEY UPDATE channel_name = VALUES(channel_name)',
+          [chId, chName, chUse]
+        );
+        upserts++;
+      }
+      return interaction.editReply({ content: `Synced ${upserts} channels from this server into the database.` });
+    } catch (e) {
+      console.error('sync channels error:', e);
+      return interaction.editReply({ content: 'Failed to sync channels.' });
+    }
+  }
+
   // Admin: Apply Roles based on primary character's rank mapping
   if (id === 'fc_admin_apply_roles') {
     const hasPerm = interaction.inGuild() && interaction.memberPermissions?.has?.(PermissionsBitField.Flags.ManageGuild);
@@ -242,6 +434,11 @@ async function handleButton(interaction, appConfig) {
           skipped++;
           continue;
         }
+        // Update users.is_admin based on Manage Guild permission for this member
+        try {
+          const hasManage = member?.permissions?.has?.(PermissionsBitField.Flags.ManageGuild) ? 1 : 0;
+          await pool.query('UPDATE users SET is_admin = ? WHERE user_discord_id = ?', [hasManage, discordId]);
+        } catch {}
         const targetRoleId = row.target_role_id ? String(row.target_role_id) : null;
         if (!targetRoleId) {
           skippedNoMapping++;
@@ -319,11 +516,13 @@ async function handleButton(interaction, appConfig) {
 
   if (id === 'fc_register_user') {
     const pfp = typeof interaction.user.displayAvatarURL === 'function' ? interaction.user.displayAvatarURL() : null;
+    const isAdmin = interaction.inGuild() && interaction.memberPermissions?.has?.(PermissionsBitField.Flags.ManageGuild) ? true : false;
     await ensureUserByDiscordId(
       interaction.user.id,
       interaction.user.username,
       interaction.user.globalName || interaction.user.displayName || interaction.user.username,
-      pfp
+      pfp,
+      { isAdmin }
     );
     return refreshPanel(interaction, appConfig);
   }

@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Logs Viewer</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;800&display=swap" rel="stylesheet">
+  <style>
+    :root{ --bg:#0f172a; --card:#111827; --muted:#9ca3af; --fg:#e5e7eb; --primary:#06b6d4; }
+    *{box-sizing:border-box}
+    body{margin:0;background:linear-gradient(180deg,#0b1220 0%, #0f172a 100%);font-family:Inter, system-ui, -apple-system, Segoe UI, Roboto, Arial;color:var(--fg)}
+    header{display:flex;align-items:center;justify-content:space-between;padding:20px 28px;border-bottom:1px solid #1f2937;background:rgba(17,24,39,.6);backdrop-filter: blur(8px)}
+    header a{color:var(--fg);text-decoration:none}
+    main{padding:28px;max-width:1100px;margin:0 auto}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 18px}
+    table{width:100%;border-collapse:collapse}
+    th,td{padding:10px;border-bottom:1px solid rgba(255,255,255,.08)}
+    .muted{color:#9ca3af}
+    .btn{padding:8px 12px;border-radius:10px;border:1px solid rgba(255,255,255,.15);background:#0b1220;color:var(--fg);text-decoration:none}
+  </style>
+</head>
+<body>
+  <header>
+    <div>FCBot — Logs Viewer</div>
+    <nav>
+      <a class="btn" href="/dashboard">Dashboard</a>
+    </nav>
+  </header>
+
+  <main>
+    <div class="card">
+      <table>
+        <thead>
+          <tr>
+            <th>Time</th>
+            <th>User</th>
+            <th>Type</th>
+            <th>Description</th>
+          </tr>
+        </thead>
+        <tbody>
+          <% for (const l of logs) { %>
+            <tr>
+              <td class="muted"><%= new Date(l.timestamp).toISOString().replace('T',' ').replace('Z',' UTC') %></td>
+              <td><%= l.display_name || l.user_name || '-' %></td>
+              <td><%= l.log_type %></td>
+              <td><%= l.log_description %></td>
+            </tr>
+          <% } %>
+        </tbody>
+      </table>
+    </div>
+  </main>
+</body>
+</html>

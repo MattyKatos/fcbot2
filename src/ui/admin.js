@@ -34,7 +34,6 @@ async function buildAdminPanel({ user, config }) {
     .setColor(0x2b2d31)
     .setThumbnail(config?.FC_Icon || null);
 
-  // Placeholder actions (disabled until implemented)
   const row = new ActionRowBuilder().addComponents(
     new ButtonBuilder()
       .setCustomId('fc_admin_sync_members')
@@ -49,14 +48,13 @@ async function buildAdminPanel({ user, config }) {
       .setLabel('Sync Roles')
       .setStyle(ButtonStyle.Secondary),
     new ButtonBuilder()
+      .setCustomId('fc_admin_sync_channels')
+      .setLabel('Sync Channels')
+      .setStyle(ButtonStyle.Secondary),
+    new ButtonBuilder()
       .setCustomId('fc_admin_apply_roles')
       .setLabel('Apply Roles')
       .setStyle(ButtonStyle.Primary),
-    new ButtonBuilder()
-      .setCustomId('fc_admin_roles')
-      .setLabel('Manage Roles')
-      .setStyle(ButtonStyle.Secondary)
-      .setDisabled(true)
   );
 
   return { content, embeds: [emb], components: [row] };

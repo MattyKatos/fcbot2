@@ -16,7 +16,7 @@
     header .user{display:flex;align-items:center;gap:12px;color:var(--muted)}
     main{padding:28px;max-width:1100px;margin:0 auto}
     .grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:18px}
-    .card{background:linear-gradient(180deg, rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 18px}
+    .card{background:linear-gradient(180deg, rgba(255,255,255,.04),rgba(255,255,255,.02));border:1px solid rgba(255,255,255,.08);border-radius:14px;padding:16px 18px; text-align:center}
     .card h3{margin:0 0 6px;font-size:14px;color:var(--muted);font-weight:600;letter-spacing:.2px}
     .card .num{font-size:36px;font-weight:800;letter-spacing:.5px}
     footer{color:var(--muted);text-align:center;padding:18px 28px;border-top:1px solid #1f2937;margin-top:28px}
@@ -31,13 +31,13 @@
 
   <main>
     <div class="grid">
-      <div class="card"><h3>Users</h3><div class="num"><%= counts.users %></div></div>
-      <div class="card"><h3>Characters</h3><div class="num"><%= counts.characters_registered %> / <%= counts.characters %></div></div>
-      <div class="card"><h3>Members</h3><div class="num"><%= counts.members %></div></div>
-      <div class="card"><h3>Ranks</h3><div class="num"><%= counts.ranks %></div><div style="margin-top:8px"><a class="btn" href="/ranks">Manage Ranks</a></div></div>
-      <div class="card"><h3>Roles</h3><div class="num"><%= counts.roles %></div><div style="margin-top:8px"><a class="btn" href="/roles">Manage Roles</a></div></div>
-      <div class="card"><h3>Channels</h3><div class="num"><%= counts.channels %></div></div>
-      <div class="card"><h3>Logs</h3><div class="num"><%= counts.logs %></div></div>
+      <div class="card"><h3>Users</h3><div class="num"><%= counts.users %></div><% if (isAdmin) { %><div style="margin-top:8px"><a class="btn" href="/users">Manage Users</a></div><% } %></div>
+      <div class="card"><h3>Characters</h3><div class="num"><%= counts.characters_registered %> / <%= counts.characters %></div><% if (isAdmin) { %><div style="margin-top:8px"><a class="btn" href="/characters">Manage Characters</a></div><% } %></div>
+      <div class="card"><h3>Members</h3><div class="num"><%= counts.members %></div><% if (isAdmin) { %><div style="margin-top:8px"><a class="btn" href="/members">Manage Members</a></div><% } %></div>
+      <div class="card"><h3>Ranks</h3><div class="num"><%= counts.ranks %></div><% if (isAdmin) { %><div style="margin-top:8px"><a class="btn" href="/ranks">Manage Ranks</a></div><% } %></div>
+      <div class="card"><h3>Roles</h3><div class="num"><%= counts.roles %></div><% if (isAdmin) { %><div style="margin-top:8px"><a class="btn" href="/roles">Manage Roles</a></div><% } %></div>
+      <div class="card"><h3>Channels</h3><div class="num"><%= counts.channels %></div><% if (isAdmin) { %><div style="margin-top:8px"><a class="btn" href="/channels">Manage Channels</a></div><% } %></div>
+      <div class="card"><h3>Logs</h3><div class="num"><%= counts.logs %></div><% if (isAdmin) { %><div style="margin-top:8px"><a class="btn" href="/logs">Logs Viewer</a></div><% } %></div>
     </div>
   </main>
 

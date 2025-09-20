@@ -1,4 +1,4 @@
-const { EmbedBuilder } = require('discord.js');
+const { EmbedBuilder, ActionRowBuilder, ButtonBuilder, ButtonStyle } = require('discord.js');
 const { getUserByDiscordId } = require('../services/db-helpers');
 const { countCharactersByDiscordId, getPrimaryCharacterByDiscordId } = require('../services/characters');
 
@@ -28,7 +28,23 @@ async function buildFcUserPanel({ targetDiscordId, config, targetUserObj = null 
       .setColor(0x00a86b)
   ];
 
-  return { content, embeds, components: [] };
+  const components = [];
+  if (hasUser) {
+    components.push(
+      new ActionRowBuilder().addComponents(
+        new ButtonBuilder()
+          .setCustomId(`fc_user_give_cur_${targetDiscordId}`)
+          .setLabel(`Give ${currencyName}`)
+          .setStyle(ButtonStyle.Primary),
+        new ButtonBuilder()
+          .setCustomId(`fc_user_challenge_deathroll_${targetDiscordId}`)
+          .setLabel('Challenge to Deathroll')
+          .setStyle(ButtonStyle.Secondary)
+      )
+    );
+  }
+
+  return { content, embeds, components };
 }
 
 module.exports = { buildFcUserPanel };

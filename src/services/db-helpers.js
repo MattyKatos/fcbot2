@@ -1,6 +1,6 @@
 const { getPool } = require('../db');
 
-async function ensureUserByDiscordId(discordId, userName = null, displayName = null, pfpUrl = null) {
+async function ensureUserByDiscordId(discordId, userName = null, displayName = null, pfpUrl = null, options = {}) {
   const pool = await getPool();
   const [[existing]] = await pool.query('SELECT * FROM users WHERE user_discord_id = ?', [discordId]);
   if (existing) {
@@ -10,6 +10,10 @@ async function ensureUserByDiscordId(discordId, userName = null, displayName = n
     if (userName && userName !== existing.user_name) { updates.push('user_name = ?'); params.push(userName); }
     if (displayName && displayName !== existing.display_name) { updates.push('display_name = ?'); params.push(displayName); }
     if (pfpUrl && pfpUrl !== existing.pfp_url) { updates.push('pfp_url = ?'); params.push(pfpUrl); }
+    if (Object.prototype.hasOwnProperty.call(options, 'isAdmin')) {
+      const val = options.isAdmin ? 1 : 0;
+      if (Number(existing.is_admin) !== val) { updates.push('is_admin = ?'); params.push(val); }
+    }
     if (updates.length) {
       params.push(existing.user_id);
       await pool.query(`UPDATE users SET ${updates.join(', ')} WHERE user_id = ?`, params);
@@ -18,10 +22,17 @@ async function ensureUserByDiscordId(discordId, userName = null, displayName = n
     return refreshed;
   }
   const name = userName || `user_${discordId}`;
-  await pool.query(
-    'INSERT INTO users (user_discord_id, user_name, display_name, pfp_url, joined) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
-    [discordId, name, displayName, pfpUrl]
-  );
+  if (Object.prototype.hasOwnProperty.call(options, 'isAdmin')) {
+    await pool.query(
+      'INSERT INTO users (user_discord_id, user_name, display_name, pfp_url, is_admin, joined) VALUES (?, ?, ?, ?, ?, CURRENT_TIMESTAMP)',
+      [discordId, name, displayName, pfpUrl, options.isAdmin ? 1 : 0]
+    );
+  } else {
+    await pool.query(
+      'INSERT INTO users (user_discord_id, user_name, display_name, pfp_url, joined) VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP)',
+      [discordId, name, displayName, pfpUrl]
+    );
+  }
   const [[created]] = await pool.query('SELECT * FROM users WHERE user_discord_id = ?', [discordId]);
   return created;
 }
